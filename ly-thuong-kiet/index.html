@@ -146,6 +146,7 @@ var $ = function (id) { return document.getElementById(id); };
 
 /* Gọi máy chủ: trong Apps Script dùng google.script.run; trên trang ngoài (GitHub Pages) gọi API_URL. */
 var API_URL = 'https://script.google.com/macros/s/AKfycbzTSTOAtHrXhXeRoLFUWkzHPvA5xsHVlrEDU4dAhU9HRzILSjz9CmGrar4yWOt5bsSA/exec';
+var MA_THU = ''; /* chỉ có ở trang thử nghiệm (tao_truong.py web --thu-nghiem) */
 function goi(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   var lan = 0;
@@ -185,7 +186,7 @@ function nhieuDot() { return APP.info && APP.info.lichThi && APP.info.lichThi.le
 function tenDot(n) { return nhieuDot() ? 'Đợt ' + n : 'Bài thi'; }
 
 /* ---------- Trang đầu ---------- */
-goi('layThongTinCuocThi').then(function (t) {
+(MA_THU ? goi('layThongTinCuocThi', MA_THU) : goi('layThongTinCuocThi')).then(function (t) {
   APP.info = t;
   var f = t.form || {};
   document.title = (t.donViToChuc ? t.donViToChuc + ' – ' : '') + 'Thi trực tuyến';
@@ -205,9 +206,13 @@ goi('layThongTinCuocThi').then(function (t) {
 
   $('loadCard').classList.add('hide');
   $('homeCard').classList.remove('hide');
-  if (t.dangMo) {
+  if (t.thuNghiem && t.thuNghiem.hetHan) {
+    $('status').innerHTML = '<span class="badge off">Link thử nghiệm đã khóa</span>' +
+      '<div class="note">Link thử chỉ dùng trước giờ mở đề. Thi thật tại link chính thức của nhà trường.</div>';
+  } else if (t.dangMo) {
     $('status').innerHTML = '<span class="badge">Đang mở' + (nhieuDot() ? ' · Đợt ' + t.dangMo.dot : '') + '</span>' +
-      '<div class="note">Từ ' + esc(t.dangMo.batDau) + ' đến ' + esc(t.dangMo.ketThuc) + '</div>';
+      (t.thuNghiem ? '<div class="note"><b>Bản thử nghiệm</b>: dùng đúng đề và máy chủ thật, bài ghi vào Sheet với tên "THI THỬ - …", không tính lượt thi thật. Tự khóa lúc ' + esc(t.thuNghiem.dongLuc) + '.</div>'
+        : '<div class="note">Từ ' + esc(t.dangMo.batDau) + ' đến ' + esc(t.dangMo.ketThuc) + '</div>');
     $('fInfo').classList.remove('hide');
   } else if (t.sapToi) {
     $('status').innerHTML = '<span class="badge off">Chưa đến giờ thi</span>' +
@@ -240,7 +245,7 @@ $('fInfo').addEventListener('submit', function (ev) {
   if (f.kieuMa === 'SDT' && !/^0\d{9}$/.test(info.ma.replace(/\D/g, '').replace(/^84/, '0'))) return loi('errHome', (f.nhanMa || 'Số điện thoại') + ' cần đủ 10 số, bắt đầu bằng 0.');
   luu('thongTinNguoiThi', info);
   $('btnStart').disabled = true; $('btnStart').textContent = 'Đang tải đề…';
-  goi('batDauThi', info).then(batDauLamBai).catch(function (e) {
+  (MA_THU ? goi('batDauThi', info, MA_THU) : goi('batDauThi', info)).then(batDauLamBai).catch(function (e) {
     loi('errHome', e.message);
     $('btnStart').disabled = false; $('btnStart').textContent = 'Vào thi';
   });
@@ -314,7 +319,7 @@ function nop(hetGio) {
 /* ---------- Kết quả + chứng nhận ---------- */
 function hienKetQua(kq, hetGio) {
   hien('vResult');
-  $('rsTitle').textContent = 'Kết quả' + (nhieuDot() ? ' đợt ' + kq.dot : '') + (hetGio ? ' (tự nộp khi hết giờ)' : '');
+  $('rsTitle').textContent = (kq.thuNghiem ? 'Kết quả THI THỬ' : 'Kết quả') + (nhieuDot() ? ' đợt ' + kq.dot : '') + (hetGio ? ' (tự nộp khi hết giờ)' : '');
   $('rsScore').innerHTML = kq.dung + '<small>/' + kq.tong + ' câu đúng</small>';
   $('rsBadge').innerHTML = kq.dat ? '<span class="badge">ĐẠT</span>' : '<span class="badge off">CHƯA ĐẠT</span>';
   var p = Math.floor(kq.giay / 60) + ' phút ' + (kq.giay % 60) + ' giây';
